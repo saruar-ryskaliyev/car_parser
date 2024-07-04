@@ -7,6 +7,7 @@ import { connectDB } from './models/index';
 import http from 'http';
 import { Server } from "socket.io";
 import cors from 'cors';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -20,7 +21,25 @@ const corsOptions = {
     methods: ['GET', 'POST'], // Allow only these methods
 };
 
+
+
 app.use(cors(corsOptions));
+
+const url = `https://car-parser.onrender.com/`; 
+const interval = 30000; 
+
+function reloadWebsite() {
+  axios.get(url)
+    .then(response => {
+      console.log(`Reloaded at ${new Date().toISOString()}: Status Code ${response.status}`);
+    })
+    .catch(error => {
+      console.error(`Error reloading at ${new Date().toISOString()}:`, error.message);
+    });
+}
+
+
+setInterval(reloadWebsite, interval);
 
 app.get("/", (req: Request, res: Response) => {
     res.send("Express + TypeScript Server");
