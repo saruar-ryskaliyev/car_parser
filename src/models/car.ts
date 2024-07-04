@@ -8,6 +8,15 @@ export interface ICar extends Document {
   region: string;
   date: string;
   photos: string[];
+  generation: string;
+  bodyType: string;
+  engineVolume: string;
+  mileage: string;
+  transmission: string;
+  driveType: string;
+  steeringWheel: string;
+  color: string;
+  customsCleared: string;
 }
 
 const CarSchema: Schema = new Schema({
@@ -18,6 +27,15 @@ const CarSchema: Schema = new Schema({
   region: { type: String, required: true },
   date: { type: String, required: true },
   photos: { type: [String], required: true },
+  generation: { type: String, required: false },
+  bodyType: { type: String, required: false },
+  engineVolume: { type: String, required: false },
+  mileage: { type: String, required: false },
+  transmission: { type: String, required: false },
+  driveType: { type: String, required: false },
+  steeringWheel: { type: String, required: false },
+  color: { type: String, required: false },
+  customsCleared: { type: String, required: false }
 });
 
 export const Car = mongoose.model<ICar>('Car', CarSchema);

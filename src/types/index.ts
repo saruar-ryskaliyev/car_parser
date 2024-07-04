@@ -1,4 +1,4 @@
-export interface Car{
+export interface Car {
     name: string;
     price: string;
     link: string;
@@ -6,4 +6,15 @@ export interface Car{
     region: string;
     date: string;
     photos: string[];
-}
+    sellerComments: string;
+    generation: string;
+    bodyType: string;
+    engineVolume: string;
+    mileage: string;
+    transmission: string;
+    driveType: string;
+    steeringWheel: string;
+    color: string;
+    customsCleared: string;
+  }
+  

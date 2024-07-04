@@ -16,21 +16,19 @@ async function scrapePage(url: string): Promise<Car[]> {
 
     $('.a-card.js__a-card').each((index, element) => {
       try {
+        // Check if the car has the "От Дилера" badge
+        const isFromDealer = $(element).find('.a-labels__item--dealer').length > 0;
+        if (isFromDealer) {
+          return; // Skip this car
+        }
+
         const carName = $(element).find('.a-card__title a').text().trim() || '';
         const carPrice = $(element).find('.a-card__price').text().trim() || '';
         const carLinkElement = $(element).find('.a-card__link');
-        const carLink = carLinkElement ? carLinkElement.attr('href') : '';
+        const carLink = carLinkElement ? 'https://kolesa.kz' + carLinkElement.attr('href') : '';
         const carDescription = $(element).find('.a-card__description').text().trim() || '';
         const carRegion = $(element).find('.a-card__param[data-test="region"]').text().trim() || '';
         const carDate = $(element).find('.a-card__param--date').text().trim() || '';
-
-        const photoUrls: string[] = [];
-        $(element).find('.thumb-gallery__pic img').each((i, img) => {
-          const photoUrl = $(img).attr('src');
-          if (photoUrl) {
-            photoUrls.push(photoUrl);
-          }
-        });
 
         if (carName && carPrice && carLink && carDescription && carRegion && carDate) {
           cars.push({
@@ -40,7 +38,17 @@ async function scrapePage(url: string): Promise<Car[]> {
             description: carDescription,
             region: carRegion,
             date: carDate,
-            photos: photoUrls,
+            photos: [],
+            sellerComments: '',
+            generation: '',
+            bodyType: '',
+            engineVolume: '',
+            mileage: '',
+            transmission: '',
+            driveType: '',
+            steeringWheel: '',
+            color: '',
+            customsCleared: ''
           });
         } else {
           console.log('Missing required fields:', { carName, carPrice, carLink, carDescription, carRegion, carDate });
@@ -56,16 +64,92 @@ async function scrapePage(url: string): Promise<Car[]> {
   return cars;
 }
 
+async function scrapeCarDetails(url: string): Promise<Partial<Car>> {
+  const details: Partial<Car> = {};
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+      },
+    });
+
+    const $ = cheerio.load(data);
+
+    const carDescription = $('.offer__description').text().trim() || '';
+    const carPhotos: string[] = [];
+    const sellerComments = $('.offer__sidebar-contacts-wrap .offer__description').text().trim() || '';
+
+    $('.gallery__main, .gallery__thumbs-list img').each((index, img) => {
+      let thumbUrl = $(img).attr('data-href') || $(img).attr('src');
+      if (thumbUrl) {
+        thumbUrl = thumbUrl.replace('120x90', '750x470');
+        carPhotos.push(thumbUrl);
+      }
+    });
+
+    details.description = carDescription;
+    details.photos = carPhotos;
+    details.sellerComments = sellerComments; // Include seller comments
+
+    $('.offer__parameters').find('dl').each((index, element) => {
+      const title = $(element).find('dt.value-title').text().trim();
+      const value = $(element).find('dd.value').text().trim();
+
+      switch (title) {
+        case 'Поколение':
+          details.generation = value;
+          break;
+        case 'Кузов':
+          details.bodyType = value;
+          break;
+        case 'Объем двигателя, л':
+          details.engineVolume = value;
+          break;
+        case 'Пробег':
+          details.mileage = value;
+          break;
+        case 'Коробка передач':
+          details.transmission = value;
+          break;
+        case 'Привод':
+          details.driveType = value;
+          break;
+        case 'Руль':
+          details.steeringWheel = value;
+          break;
+        case 'Цвет':
+          details.color = value;
+          break;
+        case 'Растаможен в Казахстане':
+          details.customsCleared = value;
+          break;
+      }
+    });
+
+  } catch (error) {
+    console.error(`Error fetching car details from: ${url}`, error);
+  }
+
+  return details;
+}
+
 export async function scrapeSiteWithCheerio(): Promise<Car[]> {
   const baseUrl = 'https://kolesa.kz/cars/';
   const pageUrls = [baseUrl]; // Add more URLs if pagination is required
   const allCars: Car[] = [];
 
-  // Scrape pages in parallel
   const scrapePromises = pageUrls.map(url => scrapePage(url));
   const results = await Promise.all(scrapePromises);
 
-  results.forEach(cars => allCars.push(...cars));
+  for (const cars of results) {
+    for (const car of cars) {
+      const carDetails = await scrapeCarDetails(car.link);
+      if (carDetails.photos && carDetails.photos.length > 0) {
+        Object.assign(car, carDetails);
+        allCars.push(car);
+      }
+    }
+  }
 
   const newCars: ICar[] = [];
   for (const carData of allCars) {

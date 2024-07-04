@@ -1,9 +1,8 @@
 import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 // import { checkForNewCars } from "./utils/scrapper";
-import { scrapeSiteWithCheerio } from "./utils/scrapper"
+import { scrapeSiteWithCheerio } from "./utils/scrapper";
 import { sendNotification } from "./utils/notify";
-import cron from 'node-cron';
 import { connectDB } from './models/index';
 import http from 'http';
 import { Server } from "socket.io";
@@ -16,10 +15,6 @@ const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = new Server(server);
 
-// PORT = 3000
-// MONGODB_URL=mongodb+srv://saruarryskaliev:saruarryskaliev@cluster0.u2pv1gz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-// MONGODB_USERNAME=saruarryskaliev
-// MONGODB_PASSWORD=saruarryskaliev
 
 const corsOptions = {
     origin: 'http://localhost:3001', // Allow only this origin
@@ -39,18 +34,23 @@ app.get("/cars", async (req: Request, res: Response) => {
     } catch (error) {
         res.status(500).json({ error: "Failed to scrape site" });
     }
-}
-);
+});
 
+app.post("/search-cars", async (req: Request, res: Response) => {
+    try {
+        console.log('Running task to check for new cars...');
+        const newCars = await scrapeSiteWithCheerio();
+        if (newCars.length > 0) {
+            const notifiedCars = await sendNotification(newCars);
+            console.log('New cars:', notifiedCars);
 
-cron.schedule('*/1 * * * *', async () => {
-    console.log('Running scheduled task to check for new cars...');
-    const newCars = await scrapeSiteWithCheerio();
-    if (newCars.length > 0) {
-        const notifiedCars = await sendNotification(newCars);
-        console.log('New cars:', notifiedCars);
-
-        io.emit('newCars', notifiedCars);
+            io.emit('newCars', notifiedCars);
+            res.json({ message: "New cars found and notifications sent", cars: notifiedCars });
+        } else {
+            res.json({ message: "No new cars found" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: "Failed to search for cars" });
     }
 });
 
