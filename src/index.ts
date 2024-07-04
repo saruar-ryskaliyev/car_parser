@@ -36,7 +36,7 @@ app.get("/cars", async (req: Request, res: Response) => {
     }
 });
 
-app.post("/search-cars", async (req: Request, res: Response) => {
+app.get("/search-cars", async (req: Request, res: Response) => {
     try {
         console.log('Running task to check for new cars...');
         const newCars = await scrapeSiteWithCheerio();
