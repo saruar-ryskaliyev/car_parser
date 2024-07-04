@@ -15,7 +15,6 @@ const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = new Server(server);
 
-
 const corsOptions = {
     origin: 'http://localhost:3001', // Allow only this origin
     methods: ['GET', 'POST'], // Allow only these methods
@@ -36,22 +35,27 @@ app.get("/cars", async (req: Request, res: Response) => {
     }
 });
 
-app.get("/search-cars", async (req: Request, res: Response) => {
-    try {
-        console.log('Running task to check for new cars...');
-        const newCars = await scrapeSiteWithCheerio();
-        if (newCars.length > 0) {
-            const notifiedCars = await sendNotification(newCars);
-            console.log('New cars:', notifiedCars);
-
-            io.emit('newCars', notifiedCars);
-            res.json({ message: "New cars found and notifications sent", cars: notifiedCars });
-        } else {
-            res.json({ message: "No new cars found" });
+app.get("/search-cars", (req: Request, res: Response) => {
+    console.log('Received request to check for new cars...');
+    
+    // Respond immediately to avoid timeout
+    res.json({ message: "Search for new cars started" });
+    
+    // Perform the scraping and notification asynchronously
+    (async () => {
+        try {
+            const newCars = await scrapeSiteWithCheerio();
+            if (newCars.length > 0) {
+                const notifiedCars = await sendNotification(newCars);
+                console.log('New cars:', notifiedCars);
+                io.emit('newCars', notifiedCars);
+            } else {
+                console.log('No new cars found');
+            }
+        } catch (error) {
+            console.error('Failed to search for cars', error);
         }
-    } catch (error) {
-        res.status(500).json({ error: "Failed to search for cars" });
-    }
+    })();
 });
 
 io.on('connection', (socket) => {
